@@ -5,6 +5,8 @@ import os
 import unicodedata
 from io import BytesIO
 from rapidfuzz import fuzz
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 st.set_page_config(page_title="🧼 Brand Clustering", layout="wide")
 st.title("🔍 Buyer & Supplier Brand Clustering Tool")
@@ -26,6 +28,32 @@ def extract_brand(name):
     words = name.split()
     return words[0] if words else ""
 
+# === Priority brand map ===
+priority_brands = {
+    'ARBURG': 'ARBURG',
+    'SERAC': 'SERAC',
+    'KHS': 'KHS',
+    'KRONES': 'KRONES',
+    'SHIBUYA': 'SHIBUYA',
+    'SIDEL': 'SIDEL',
+    'BMB': 'BMB',
+    'SIPA': 'SIPA',
+    'ENGEL': 'ENGEL',
+    'NETSTAL': 'NETSTAL',
+    'SACMI': 'SACMI',
+    'HUAYAN': 'HUAYAN',
+    'DEMAG': 'Sumitomo (SHI) Demag',
+    'SUMITOMO': 'Sumitomo (SHI) Demag',
+    'SIAPI':'SIAPI'
+}
+
+def apply_priority(name):
+    upper_name = str(name).upper()
+    for keyword, result in priority_brands.items():
+        if keyword in upper_name:
+            return result
+    return None  # No override
+
 def cluster_names(df, entity_col, cleaned_col, brand_col, final_col):
     df[cleaned_col] = df[entity_col].fillna('').apply(clean_name)
     df[brand_col] = df[cleaned_col].apply(extract_brand)
@@ -39,6 +67,13 @@ def cluster_names(df, entity_col, cleaned_col, brand_col, final_col):
         for index, row in group.iterrows():
             current_original = row[entity_col]
             current_clean = row[cleaned_col]
+
+            # Priority rule check
+            priority_match = apply_priority(current_original)
+            if priority_match:
+                cleaned_names.append(priority_match)
+                continue
+
             found_match = False
             best_score = 0
             best_master_original = None
@@ -97,7 +132,7 @@ if uploaded_file:
     st.write("🔄 Clustering Supplier names...")
     df = cluster_names(df, 'Supplier', 'Supplier Cleaned', 'Supplier Brand', 'Supplier Cleaned Final')
 
-    # Step 3: Reorder columns
+    # Step 3: Reorder & drop temp columns
     cols = df.columns.tolist()
 
     if 'Buyer' in cols and 'Buyer Cleaned Final' in cols:
@@ -105,7 +140,8 @@ if uploaded_file:
     if 'Supplier' in cols and 'Supplier Cleaned Final' in cols:
         cols.insert(cols.index('Supplier') + 1, cols.pop(cols.index('Supplier Cleaned Final')))
 
-    for col_to_drop in ['Buyer Cleaned', 'Supplier Cleaned']:
+    # Remove temp/generated columns
+    for col_to_drop in ['Buyer Cleaned', 'Supplier Cleaned', 'Buyer Brand', 'Supplier Brand']:
         if col_to_drop in df.columns:
             df.drop(columns=col_to_drop, inplace=True)
 
@@ -115,11 +151,22 @@ if uploaded_file:
     if 'Buyer Cleaned Final' in df.columns and 'Supplier Cleaned Final' in df.columns:
         df = df.sort_values(['Buyer Cleaned Final', 'Supplier Cleaned Final'])
 
-    # Download button
+    # === Write to Excel with highlight ===
     output = BytesIO()
-    df.to_excel(output, index=False, engine='openpyxl')
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Clustered')
+        workbook = writer.book
+        worksheet = writer.sheets['Clustered']
+
+        # Highlight "Buyer Cleaned Final" and "Supplier Cleaned Final"
+        highlight_fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+        for col_idx, col in enumerate(df.columns, start=1):
+            if col in ["Buyer Cleaned Final", "Supplier Cleaned Final"]:
+                worksheet.cell(row=1, column=col_idx).fill = highlight_fill
+
     output.seek(0)
 
+    # === Download button ===
     st.success("✅ Clustering complete!")
     st.download_button(
         label="⬇️ Download Cleaned Excel",
