@@ -44,7 +44,10 @@ priority_brands = {
     'HUAYAN': 'HUAYAN',
     'DEMAG': 'Sumitomo (SHI) Demag',
     'SUMITOMO': 'Sumitomo (SHI) Demag',
-    'SIAPI':'SIAPI'
+    'SIAPI':'SIAPI',
+    'Nissei':'Nissei ASB',
+    'ASB':'Nissei ASB',
+    'SAPI':'SIAPI'
 }
 
 def apply_priority(name):
