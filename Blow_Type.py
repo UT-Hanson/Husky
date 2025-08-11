@@ -27,7 +27,7 @@ st.set_page_config(page_title="Product Type Classifier", page_icon="🧪", layou
 st.title("🧪 Product Type Classifier")
 
 st.markdown(
-    "Upload a CSV/XLSX with **Supplier Cleaned Final** and **Product Description**. "
+    "Upload a XLSX with **Supplier Cleaned Final** and **Product Description**. "
     "The app adds **Product Type Focus (Single Stage/ Linear Blower)** based on your rules."
 )
 
@@ -111,3 +111,4 @@ if df is not None:
             )
 else:
     st.info("Upload a file to begin.")
+
